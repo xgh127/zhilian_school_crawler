@@ -1,5 +1,5 @@
 import os
-from crawler.nowcoder_crawler import crawl_city_jobs
+from crawler.nowcoder_crawler import crawl_city_jobs #,, run_spider
 from analysis.job_analysis import load_and_clean_data
 from visualizations.visualizer import *
 
@@ -7,6 +7,8 @@ if __name__ == "__main__":
     # Uncomment to crawl data
     # print("开始爬取数据...")
     # crawl_city_jobs()
+
+    #run_spider()
 
     print("加载与清洗数据...")
     df = load_and_clean_data()
