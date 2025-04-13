@@ -1,5 +1,5 @@
 import os
-from crawler.nowcoder_crawler import crawl_city_jobs #,, run_spider
+from crawler.nowcoder_crawler import crawl_city_jobs #, run_spider
 from analysis.job_analysis import load_and_clean_data
 from visualizations.visualizer import *
 
