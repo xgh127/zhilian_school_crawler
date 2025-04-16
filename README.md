@@ -10,6 +10,7 @@ git clone https://github.com/void678/zhilian-crawler.git
 cd zhilian-crawler-main
 pip install -r requirements.txt
 ```
+
 2.运行
 ```bash
 python main.py
