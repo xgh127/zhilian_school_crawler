@@ -6,7 +6,7 @@
 
 1. 源码安装：
 ```bash
-git clone [项目地址]
+git clone https://github.com/void678/zhilian-crawler.git
 cd zhilian-crawler-main
 pip install -r requirements.txt
 ```
@@ -17,10 +17,7 @@ python main.py
 
 ## 使用说明
 
-2. 本项目是对4个城市招聘者以python为关键字的招聘信息进行爬取，可根据实际情况更改crawler.py文件里的keyword等，需要将main.py文件里的注释掉
-```bash
-python main.py
-```
+1. 本项目是对4个城市招聘者以python为关键字的招聘信息进行爬取，可根据实际情况更改crawler.py文件里的keyword等，需要将main.py文件里第8行crawl_city_jobs()的注释删掉
 
 2. 功能：
    - 数据爬取（可选）
