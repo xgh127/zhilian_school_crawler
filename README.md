@@ -10,32 +10,25 @@ git clone [项目地址]
 cd zhilian-crawler-main
 pip install -r requirements.txt
 ```
-
-2. 创建并激活虚拟环境（推荐）：
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-```
-
-3. 安装依赖包：
-```bash
-pip install -r requirements.txt
-```
-
-## 使用方法
-
-1. 运行主程序：
+2.运行
 ```bash
 python main.py
 ```
 
-2. 程序会自动执行以下步骤：
+## 使用说明
+
+2. 本项目是对4个城市招聘者以python为关键字的招聘信息进行爬取，可根据实际情况更改crawler.py文件里的keyword等，需要将main.py文件里的注释掉
+```bash
+python main.py
+```
+
+2. 功能：
    - 数据爬取（可选）
    - 数据清洗
    - 生成可视化图表
 
-3. 生成的图表将保存在 `output/figures` 目录下
+3. 实现：
+   - 生成的图表将保存在 `output/figures` 目录下
 
 ## 项目结构
 
@@ -49,24 +42,6 @@ python main.py
 └── requirements.txt    # 项目依赖
 ```
 
-## 依赖包
-
-- requests: HTTP 请求
-- beautifulsoup4: HTML 解析
-- pandas: 数据处理
-- matplotlib: 数据可视化
-- seaborn: 统计图表
-- wordcloud: 词云生成
-- selenium: 网页自动化
-- webdriver_manager: 浏览器驱动管理
-- jieba: 中文分词
-
-## 注意事项
-
-- 请确保网络连接正常
-- 建议使用虚拟环境运行项目
-- 爬取数据时请遵守网站的使用条款
-- 生成的图表会自动保存在 output/figures 目录下
 
 ## 许可证
 
