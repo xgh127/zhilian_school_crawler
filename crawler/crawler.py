@@ -10,6 +10,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 from process_data import extract_empty_file_map
+import argparse
 
 
 def login(driver):
@@ -30,6 +31,60 @@ def login(driver):
     loginBtn.click()
     time.sleep(3)
     print("登录成功")
+
+def auto_login(driver):
+    driver.get("https://passport.zhaopin.com/additional?appID=8b25de552a844b6c8493333ce98b9caf&redirectURL=https%3A%2F%2Fxiaoyuan.zhaopin.com%2Fredirect%3Furl%3Dhttps%253A%252F%252Fxiaoyuan.zhaopin.com%252Fsearch%252Fjn%253D2%253Fcity%253D538%2526cateType%253Dmajor")
+    time.sleep(3)
+    # 切换到短信登录
+    # 等待二维码登录区域元素加载完成
+    qrcode_login_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'zppp-panel-qrcode-bar__img'))
+        )
+        # 点击二维码登录区域
+    qrcode_login_element.click()
+    # 切换到账号密码登录
+     # 切换到“账密登录”标签
+    tab_login_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//li[text()='账密登录']"))
+        )
+    tab_login_btn.click()
+    username_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@placeholder='用户名/手机号/邮箱']"))
+        )
+    username_input.send_keys("18290207267")
+
+        # 输入密码
+    password_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@placeholder='密码']"))
+        )
+    password_input.send_keys("xgh123456")
+
+
+    # 勾选同意协议
+    checkbox = driver.find_element(By.XPATH, "//input[@id='accept']")
+    checkbox.click()
+
+    # 点击登录按钮
+    login_btn = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CLASS_NAME, "zppp-submit"))
+    )
+    login_btn.click()
+    time.sleep(3)
+
+    print("登录成功")
+
+# 页面退出登录会出现登录
+def relogin(driver):
+    """重新登录"""
+    try:
+        login_btn = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CLASS_NAME, 'main-body__login-guide__button'))
+        )
+        # 跳转到登录页面
+        login_btn.click()
+        auto_login(driver)
+    except:
+        print("重登陆异常，请人工检查")
 
 def get_job_class_map():
     """获取专业代码映射"""
@@ -98,6 +153,28 @@ def save_incrementally(file_path, new_data):
         json.dump(existing, f, ensure_ascii=False, indent=2)
 
 
+def check_login_status(driver):
+    """
+    检查是否登录了智联招聘网站。
+    
+    参数:
+        driver (webdriver): Selenium WebDriver 实例。
+    
+    返回:
+        bool: 如果已登录，返回 True；否则返回 False。
+    """
+    try:
+        # 找有没有这个元素，如果有，说明退出登录了
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'main-body__login-guide'))
+        )
+
+        return False
+    except:
+        # 如果没有找到登录引导元素，则说明已登录
+        return True
+
+
 
 
 def crawl_major_jobs(driver, major_name, major_code,start_index):
@@ -105,6 +182,7 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
     print(f"📌 正在抓取 {major_name} 相关职位...")
     # 初始化职位id
     start_ID = 0
+    page_index = 0
     try:
         # 初始化数据文件
         data_file = f"./crawler/data/{start_index}_{major_code}_{major_name}.json"
@@ -112,17 +190,25 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
         if not os.path.exists(data_file):
             with open(data_file, "w", encoding="utf-8") as f:
                 json.dump([], f, ensure_ascii=False, indent=4)
-
+        time.sleep(3)# 新建文件等1s
         url = f"https://xiaoyuan.zhaopin.com/search/index?refcode=4404&cateType=major&city=538%2C539%2C540&degree=4%2C3%2C10%2C1&sourceType=2&position=2%2C5&major={major_code}"
         driver.get(url)
+        time.sleep(5)
         
-        # 等待主要内容加载
+        # 等待主要内容加载,直接获取你想要的信息卡片，别车哪些个更大的list之类的，否则会因为刷新导致定位失败
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CLASS_NAME, "position-card"))
         )
-
+        time.sleep(2) # 等待页面加载完毕
         while True:
             # 第一阶段：收集本页所有职位基础信息
+            page_index += 1
+            current_time=time.time()
+            # 拼接一条log字符串
+            # 时间字符串转化为
+            time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_time))
+            log_str = f"【{time_str}】【{major_name}】第 {page_index} 页数据获取开始！"
+            save_log(log_str)
             position_items = driver.find_elements(By.CLASS_NAME, "position-card")
             page_data = []
             position_cards = []
@@ -192,19 +278,22 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "position-list"))
                 )
+                if not check_login_status(driver):
+                    return False
                 time.sleep(2)
             except Exception:
                 print("⏹ 已到达最后一页")
-                break
-        return True
+                return True
+                  
     except Exception as e:
-        print(f"⏸ {major_name} 中断于：{str(e)}")
+        print(f"⏸ {major_name} 中断于第{page_index}页：{str(e)}")
         return False
 
-def get_job_positions(driver, job_class_map):
+def get_job_positions(driver, job_class_map,args_auto):
     """获取职位信息（有序map版本）"""
-    login(driver)
+    auto_login(driver)
     print("✅ 登录成功，开始爬取数据")
+    auto_mode = args_auto
 
     # 转换为有序列表（保持原顺序）
     major_list = list(job_class_map.items())
@@ -221,21 +310,28 @@ def get_job_positions(driver, job_class_map):
                 if name == last_major:
                     start_index = idx + 1  # 从下一个专业开始
                     break
-
+    idx = start_index #当前的专业索引               
     # 遍历专业列表
-    for idx in range(start_index, len(major_list)):
-        major_name, major_code = major_list[idx]
-        
+    while idx < len(major_list) and idx >= start_index:
+        major_name, major_code = major_list[idx] 
         try:
             print(f"\n🔍 正在处理专业 ({idx+1}/{len(major_list)})：{major_name}")
             
             # 执行爬取（新增异常捕获）
-            success = crawl_major_jobs(driver, major_name, major_code,idx+1)
+            success = crawl_major_jobs(driver, major_name, major_code,idx+1) # 修改为便于计数的从1开始的索引，所以这里要+1
             
             if not success:
-                print(f"⏸ {major_name} 爬取未完成，保留进度")
-                break
-                
+                print(f"⏸ {major_name} 爬取未完成，可能是退出登录了")
+                if relogin(driver):
+                    print("🔁 重新登录成功，继续爬取")
+                else:
+                    print("⏹ 重新登录失败，退出爬虫")
+                    break
+            else:
+                print(f"✅ {major_name} 爬取完成")
+                idx += 1
+                # 休息一会接着爬
+                time.sleep(3)
             # 更新进度
             save_progress({
                 "last_major": major_name,
@@ -244,6 +340,22 @@ def get_job_positions(driver, job_class_map):
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
             })
             
+            if not auto_mode:
+                print("🚧 已进入人工模式，将依靠输入的专业码读取对应的专业")
+                cmd = input("请输入下一个爬取专业的代码（输入 -1退出）：")
+                if cmd == "-1":
+                    exit(0)
+                else:
+                    # 转为数字
+                    major_code = int(cmd)
+                    # 在majar_list中查找对应的专业
+                    for i,(name, code) in enumerate(major_list):
+                        if code == major_code:
+                            idx = i
+                            break
+                    else:
+                        print(f"❌ 未找到专业代码 {major_code}，请检查输入是否正确")
+                        exit(1)
         except KeyboardInterrupt:
             print("\n🛑 用户主动中断，保存当前进度")
             save_progress({
@@ -263,14 +375,25 @@ def get_job_positions(driver, job_class_map):
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
             })
             raise
-
+def save_log(log_data):
+    """增强型日志保存"""
+    # 创建一个日志文件txt,逐条append日志记录
+    log_file = "./crawler/persist/log.txt"
+    try:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_data)
+            f.write("\n")
+    except Exception as e:
+        print(f"⚠️ 日志保存失败：{str(e)}")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 日志保存失败：{str(e)}")
 def save_progress(progress_data):
     """增强型进度保存"""
     progress_data.update({
         "version": "1.1",
         "status": "interrupted" if progress_data["processed_index"] < progress_data["total_count"]-1 else "completed"
     })
-    
+    # 
     try:
         with open('./crawler/persist/progress.json', 'w', encoding='utf-8') as f:
             json.dump(progress_data, f, ensure_ascii=False, indent=2)
@@ -285,7 +408,7 @@ def save_progress(progress_data):
    
 
 
-def run_spider():
+def run_spider(args):
     """主函数，运行爬虫"""
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
     driver.maximize_window()
@@ -294,7 +417,7 @@ def run_spider():
         # 获取专业代码映射
         job_class_map = get_job_class_map()
 
-        get_job_positions(driver, job_class_map)
+        get_job_positions(driver, job_class_map, args.auto)
 
         print("爬取完成，数据已保存到 job_positions.json")
     finally:
@@ -302,4 +425,8 @@ def run_spider():
 
 
 if __name__ == "__main__":
-    run_spider()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--auto", action="store_true", default=False, help="默认非自动模式，手动输入专业代码")
+    args = parser.parse_args()
+    run_spider(args)
