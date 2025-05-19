@@ -32,6 +32,61 @@ def login(driver):
     time.sleep(3)
     print("登录成功")
 
+def extract_major_info(driver):
+    """提取专业信息并导出为 JSON"""
+    major_info = {}
+
+    # 点击“更多专业”按钮
+    more_major_btn = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, ".expand-filter__more span"))
+    )
+    more_major_btn.click()
+    time.sleep(1)
+
+    # 提取一级学科
+    first_level_options = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".s-cascader__first-level .s-cascader__option"))
+    )
+    for first_level_option in first_level_options:
+        first_level_name = first_level_option.find_element(By.CLASS_NAME, "s-cascader__option-content").text
+        major_info[first_level_name] = {}
+
+        # 展开一级学科
+        first_level_option.click()
+        time.sleep(1)
+
+        # 提取二级学科
+        second_level_options = driver.find_elements(By.CSS_SELECTOR, ".s-cascader__second-level .s-cascader__option")
+        for second_level_option in second_level_options:
+            second_level_name = second_level_option.find_element(By.CLASS_NAME, "s-cascader__option-content").text
+            major_info[first_level_name][second_level_name] = []
+
+            # 展开二级学科
+            second_level_option.click()
+            time.sleep(1)
+
+            # 提取具体专业
+            third_level_options = driver.find_elements(By.CSS_SELECTOR, ".s-cascader__third-level .s-cascader__select-option")
+            for third_level_option in third_level_options:
+                third_level_name = third_level_option.find_element(By.CLASS_NAME, "s-cascader__select-option-content").text
+                major_info[first_level_name][second_level_name].append(third_level_name)
+                # 每个专业存一次 JSON 文件
+                with open('major_info.json', 'w', encoding='utf-8') as f:
+                    json.dump(major_info, f, ensure_ascii=False, indent=4)
+                print(f"已保存专业：{third_level_name}")
+
+            # 关闭二级学科面板
+            second_level_option.click()
+            time.sleep(1)
+
+        # 关闭一级学科面板
+        first_level_option.click()
+        time.sleep(1)
+
+    print("专业信息已成功导出为 major_info.json")
+    return major_info
+
+
 def auto_login(driver):
     driver.get("https://passport.zhaopin.com/additional?appID=8b25de552a844b6c8493333ce98b9caf&redirectURL=https%3A%2F%2Fxiaoyuan.zhaopin.com%2Fredirect%3Furl%3Dhttps%253A%252F%252Fxiaoyuan.zhaopin.com%252Fsearch%252Fjn%253D2%253Fcity%253D538%2526cateType%253Dmajor")
     time.sleep(3)
@@ -88,8 +143,8 @@ def relogin(driver):
 
 def get_job_class_map():
     """获取专业代码映射"""
-    if os.path.exists('./crawler/persist/job_class_map_new.json'):
-        with open('./crawler/persist/job_class_map_new.json', 'r', encoding='utf-8') as f:
+    if os.path.exists('./crawler/persist/job_class_map_v2.json'):
+        with open('./crawler/persist/job_class_map_v2.json', 'r', encoding='utf-8') as f:
             job_class_map = json.load(f)
         return job_class_map
     else:
@@ -233,7 +288,8 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
 
             # 第二阶段：逐个获取详细信息
             original_window = driver.current_window_handle
-            for index in range(len(position_items)):
+            index = 0
+            while index < (len(position_items)):
                 try:
                     # 重新定位元素防止失效
                     item = driver.find_elements(By.CLASS_NAME, "position-list__item")[index]
@@ -255,6 +311,7 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
                     # 实时保存数据
                     save_incrementally(data_file, page_data[index])
                     print(f"✅ 已保存 {page_data[index]['职位名称']} 的完整信息")
+                    index += 1
                     
                 except Exception as e:
                     print(f"处理第 {index+1} 个职位时出错：{str(e)}")
@@ -266,7 +323,9 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
                     driver.refresh()
                     WebDriverWait(driver, 15).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "position-list")))
-                    break
+                    # input("请手动处理该职位，按回车继续")
+                    continue
+                    # return False
 
             # 翻页操作
             try:
@@ -283,7 +342,10 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
                 time.sleep(2)
             except Exception:
                 print("⏹ 已到达最后一页")
-                return True
+                if not check_login_status(driver):
+                    return False
+                else:
+                    return True
                   
     except Exception as e:
         print(f"⏸ {major_name} 中断于第{page_index}页：{str(e)}")
@@ -322,17 +384,14 @@ def get_job_positions(driver, job_class_map,args_auto):
             
             if not success:
                 print(f"⏸ {major_name} 爬取未完成，可能是退出登录了")
-                if relogin(driver):
-                    print("🔁 重新登录成功，继续爬取")
-                else:
-                    print("⏹ 重新登录失败，退出爬虫")
-                    break
+                # 重新登录
+                auto_login(driver)
+                print("🔁 重新登录成功，继续爬取")
             else:
                 print(f"✅ {major_name} 爬取完成")
                 idx += 1
                 # 休息一会接着爬
                 time.sleep(3)
-            # 更新进度
             save_progress({
                 "last_major": major_name,
                 "processed_index": idx,
