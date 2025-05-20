@@ -237,6 +237,7 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
     print(f"📌 正在抓取 {major_name} 相关职位...")
     # 初始化职位id
     start_ID = 0
+    # 初始化页面索引
     page_index = 0
     try:
         # 初始化数据文件
@@ -245,6 +246,8 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
         if not os.path.exists(data_file):
             with open(data_file, "w", encoding="utf-8") as f:
                 json.dump([], f, ensure_ascii=False, indent=4)
+        else:
+            clear_half_file(data_file)
         time.sleep(3)# 新建文件等1s
         url = f"https://xiaoyuan.zhaopin.com/search/index?refcode=4404&cateType=major&city=538%2C539%2C540&degree=4%2C3%2C10%2C1&sourceType=2&position=2%2C5&major={major_code}"
         driver.get(url)
@@ -350,6 +353,17 @@ def crawl_major_jobs(driver, major_name, major_code,start_index):
     except Exception as e:
         print(f"⏸ {major_name} 中断于第{page_index}页：{str(e)}")
         return False
+# 清空爬取到一半终端的文件，从头开始爬取
+def clear_half_file(file_path):
+    """清空爬取到一半终端的文件，从头开始爬取"""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            existing = json.load(f)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump([], f, ensure_ascii=False, indent=4)
+        print(f"🗑️ 已清空 {file_path} 中的数据")
+    except Exception as e:
+        print(f"❌ 清空 {file_path} 失败：{str(e)}")
 
 def get_job_positions(driver, job_class_map,args_auto):
     """获取职位信息（有序map版本）"""
